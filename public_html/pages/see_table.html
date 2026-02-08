@@ -3,13 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>easyretain.com</title>
-<link rel="stylesheet" href="style.css">
-<style>
-    #table_content{
-        display: flex;
-        flex-direction: column;
-    }
-</style>
+<link rel="stylesheet" href="../style.css">
 </head>
 
 <body>
@@ -20,26 +14,31 @@
 </div>
 
 <div class="content" id="content">
-    <header class="header">
-        <a href="pages/create_delete_table.html?name='create'"><button class="create_delete_table">Create</button></a>
-         <a href="pages/create_delete_table.html?name='delete'"><button class="create_delete_table">Delete</button></a>
-    </header>
-    <div id="table_content">
 
-    </div>
+</div>
+<div>
 </div>
 <script>
+
+const params = new URLSearchParams(window.location.search);
+
+const name = params.get("name");
+
 
 const loader = document.getElementById("loader");
 const content = document.getElementById("content");
 const local = "http://127.0.0.1:8000"
 const server = "https://python-mysql-api.onrender.com"
 const hostNow = server
+  
+ 
 
-// async function that loads data
-async function loadData() {
+async function openTable(table) {
+        loader.style.display = "block";
+        content.style.display = "none";
     try {
-        const response = await fetch(hostNow); // your API endpoint
+        
+        const response = await fetch(`${hostNow}/${table}`); // your API endpoint
         const data = await response.json();
 
 
@@ -47,7 +46,29 @@ async function loadData() {
         loader.style.display = "none";
         content.style.display = "flex";
         //.......................................................................................................
-        firstPage(data)
+        let td = ""
+        let tr = ""
+        data.forEach(element => {
+           element.forEach(item => {
+            const column =
+            `
+            <td>${item}</td>
+            `
+            td += column
+           })
+           tr +=
+           `
+           <tr>${td}</tr>
+           `
+           td = ""
+        });
+        content.innerHTML = 
+        `
+        <table border="1">
+            ${tr}
+        </table>
+        `             
+
         //.......................................................................................................
 
     } catch (error) {
@@ -55,21 +76,7 @@ async function loadData() {
     }
 }
 
-// start loading
-loadData();
-
-
-    
-    function firstPage(data) {
-    let container = document.getElementById("table_content")
-    let fP = '';
-            data.forEach(element => {
-                fP += `<a href="/pages/see_table.html?name=${element}"><button class="tables">${element}</button></a>`
-            });
-    container.innerHTML = fP
-    }
+openTable(name)
 </script>
 </body>
 </html>
-
-
