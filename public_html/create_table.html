@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Table</title>
+<style>
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#f0f0f0;}
+.header{background:#1f1f1f;color:#00ffff;padding:15px 20px;}
+.container{max-width:800px;margin:auto;padding:20px;}
+.card{background:#1e1e1e;padding:20px;border-radius:10px;box-shadow:0 0 12px rgba(0,255,255,0.2);}
+label{display:block;margin-bottom:5px;font-weight:bold;color:#00ffff;}
+input,select{width:100%;padding:8px;margin-bottom:10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#f0f0f0;}
+.column-row{display:grid;grid-template-columns:1fr 1fr 80px 1fr 50px;gap:8px;margin-bottom:8px;}
+.buttons{display:flex;gap:10px;flex-wrap:wrap;}
+.btn{border:none;padding:8px 12px;border-radius:6px;cursor:pointer;color:white;font-weight:bold;transition:.2s;}
+.btn.blue{background:#00bfff;}
+.btn.gray{background:#555;}
+.btn.red{background:#ff4c4c;}
+.btn:hover{opacity:.85;}
+.varchar-length{width:60px;}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #333;border-top:4px solid #00bfff;border-radius:50%;width:35px;height:35px;animation:spin 1s linear infinite;}
+@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0deg);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
+@media(max-width:700px){.column-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header class="header"><h1>Create New Table</h1></header>
+<div class="container">
+<div class="card">
+<form id="createTableForm">
+<label>Table Name</label>
+<input id="tableName" type="text" placeholder="Table Name" required>
+<h3>Columns</h3>
+<div id="columnsContainer"></div>
+<div class="buttons">
+<button type="button" id="addColumnBtn" class="btn gray">+ Add Column</button>
+<button type="submit" class="btn blue">Create Table</button>
+</div>
+</form>
+</div>
+</div>
+<div class="loading" id="loading"></div>
+<script>
+const columnsContainer=document.getElementById("columnsContainer");
+const addColumnBtn=document.getElementById("addColumnBtn");
+const form=document.getElementById("createTableForm");
+const loading=document.getElementById("loading");
+
+function showLoading(){loading.style.display="block";}
+function hideLoading(){loading.style.display="none";}
+
+function createColumnRow(name="",type="INT",nullable="NULL",varcharLength="255"){
+    const row=document.createElement("div"); row.className="column-row";
+    row.innerHTML=`
+        <input type="text" placeholder="Column Name" value="${name}" required>
+        <select class="type-select">
+            <option ${type==="INT"?"selected":""}>INT</option>
+            <option ${type==="VARCHAR"?"selected":""}>VARCHAR</option>
+            <option ${type==="TEXT"?"selected":""}>TEXT</option>
+            <option ${type==="DATE"?"selected":""}>DATE</option>
+            <option ${type==="BOOLEAN"?"selected":""}>BOOLEAN</option>
+        </select>
+        <input type="number" class="varchar-length" placeholder="Length" value="${varcharLength}" style="display:${type==="VARCHAR"?"block":"none"}">
+        <select><option ${nullable==="NULL"?"selected":""}>NULL</option><option ${nullable==="NOT NULL"?"selected":""}>NOT NULL</option></select>
+        <button type="button" class="btn red remove-btn">X</button>
+    `;
+    const typeSelect=row.querySelector(".type-select");
+    const lengthInput=row.querySelector(".varchar-length");
+    typeSelect.addEventListener("change",()=>{lengthInput.style.display=typeSelect.value==="VARCHAR"?"block":"none";});
+    row.querySelector(".remove-btn").addEventListener("click",()=>{row.remove();});
+    columnsContainer.appendChild(row);
+}
+
+addColumnBtn.addEventListener("click",()=>{createColumnRow();});
+createColumnRow("id","INT","NOT NULL");
+
+form.addEventListener("submit",async(e)=>{
+    e.preventDefault();
+    const tableName=document.getElementById("tableName").value;
+    const columnRows=document.querySelectorAll(".column-row");
+    let columns=[];
+    columnRows.forEach(row=>{
+        const name=row.children[0].value;
+        const type=row.querySelector(".type-select").value;
+        const length=row.querySelector(".varchar-length").value;
+        const nullable=row.children[3].value;
+        let finalType=type;
+        if(type==="VARCHAR"){finalType=`VARCHAR(${parseInt(length)||255})`;}
+        columns.push({name:name,type:finalType,nullable:nullable});
+    });
+    const payload={table_name:tableName,columns:columns};
+    showLoading();
+    try{
+        const res=await fetch("https://python-mysql-api.onrender.com/create-table",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+        await res.json();
+        alert("Table created!");
+        window.location.href="index.html";
+    }catch(err){console.error(err); alert("Error creating table");}
+    finally{hideLoading();}
+});
+</script>
+</body>
+</html>

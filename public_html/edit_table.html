@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Table</title>
+<style>
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#f0f0f0;}
+.header{background:#1f1f1f;color:#00ffff;padding:15px 20px;}
+.container{max-width:900px;margin:auto;padding:20px;}
+.card{background:#1e1e1e;border-radius:10px;padding:20px;box-shadow:0 0 12px rgba(0,255,255,0.2);}
+.actions{margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;}
+.btn{border:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:white;font-weight:bold;transition:.2s;}
+.btn.blue{background:#00bfff;}
+.btn.gray{background:#555;}
+.btn.red{background:#ff4c4c;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{padding:10px;border-bottom:1px solid #333;text-align:left;}
+th{background:#272727;color:#00ffff;}
+td{cursor:pointer;}
+input.cell-input{width:100%;border:1px solid #333;padding:5px;border-radius:4px;background:#1a1a1a;color:#f0f0f0;}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #333;border-top:4px solid #00bfff;border-radius:50%;width:35px;height:35px;animation:spin 1s linear infinite;}
+@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0deg);}100%{transform:translate(-50%,-50%) rotate(360deg);} }
+@media(max-width:700px){table,thead,tbody,tr,td,th{display:block;width:100%;}thead{display:none;}tr{margin-bottom:10px;background:#1a1a1a;padding:10px;border-radius:8px;}}
+</style>
+</head>
+<body>
+<header class="header"><h1>Edit Table</h1></header>
+<div class="container">
+<div class="card">
+<div class="actions">
+<button id="addRowBtn" class="btn gray">+ Add Row</button>
+<button id="saveBtn" class="btn blue">Save Changes</button>
+</div>
+<table>
+<thead><tr id="tableHead"></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+<div class="loading" id="loading"></div>
+<script>
+const tableHead = document.getElementById("tableHead");
+const tableBody = document.getElementById("tableBody");
+const addRowBtn = document.getElementById("addRowBtn");
+const saveBtn = document.getElementById("saveBtn");
+const loading = document.getElementById("loading");
+
+function showLoading(){ loading.style.display="block"; }
+function hideLoading(){ loading.style.display="none"; }
+
+const urlParams = new URLSearchParams(window.location.search);
+const tableName = urlParams.get("table");
+document.querySelector("header h1").innerText = "Edit Table: " + tableName;
+
+let columns = [];
+let tableData = [];
+
+// Render table
+function renderTable(){
+    tableHead.innerHTML=""; tableBody.innerHTML="";
+    columns.forEach(col => { const th = document.createElement("th"); th.innerText = col; tableHead.appendChild(th); });
+    const actionTh = document.createElement("th"); actionTh.innerText="Actions"; tableHead.appendChild(actionTh);
+
+    tableData.forEach((row,rowIndex)=>{
+        const tr = document.createElement("tr");
+        columns.forEach(col=>{
+            const td = document.createElement("td");
+            td.innerText = row[col];
+            td.addEventListener("click",()=>makeEditable(td,rowIndex,col));
+            tr.appendChild(td);
+        });
+        const tdAction = document.createElement("td");
+        const delBtn = document.createElement("button");
+        delBtn.innerText="Delete"; delBtn.className="btn red";
+        delBtn.onclick = ()=>{ tableData.splice(rowIndex,1); renderTable(); }
+        tdAction.appendChild(delBtn);
+        tr.appendChild(tdAction);
+        tableBody.appendChild(tr);
+    });
+}
+
+// Make cell editable
+function makeEditable(td,rowIndex,col){
+    const input = document.createElement("input");
+    input.className = "cell-input";
+    input.value = td.innerText;
+    input.onblur = ()=>{ tableData[rowIndex][col] = input.value; td.innerText = input.value; }
+    td.innerHTML = "";
+    td.appendChild(input);
+    input.focus();
+}
+
+// Add new row
+addRowBtn.addEventListener("click", ()=>{
+    let newRow = {};
+    columns.forEach(c => newRow[c]="");
+    tableData.push(newRow);
+    renderTable();
+});
+
+// Save table
+saveBtn.addEventListener("click", async ()=>{
+    showLoading();
+    try{
+        const payload = { table_name: tableName, data: tableData };
+        const res = await fetch("https://python-mysql-api.onrender.com/update-table",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(res.ok){
+            alert(`Changes saved! Rows updated: ${data.rows_updated}`);
+        } else {
+            alert("Error saving table: " + data.detail);
+            console.error(data);
+        }
+    }catch(err){ console.error(err); alert("Error saving table"); }
+    finally{ hideLoading(); }
+});
+
+// Fetch table data
+async function fetchTableData(){
+    showLoading();
+    try{
+        const res = await fetch(`https://python-mysql-api.onrender.com/get-table-data/${tableName}`);
+        const data = await res.json();
+        columns = data.columns;
+        tableData = data.rows;
+        renderTable();
+    }catch(err){ console.error(err); alert("Error fetching table data"); }
+    finally{ hideLoading(); }
+}
+
+fetchTableData();
+</script>
+</body>
+</html>

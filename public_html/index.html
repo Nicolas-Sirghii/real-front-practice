@@ -2,74 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>easyretain.com</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB Manager</title>
 <style>
-    #table_content{
-        display: flex;
-        flex-direction: column;
-    }
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#f0f0f0;}
+.header{background:#1f1f1f;color:#00ffff;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;}
+.header h1{margin:0;font-size:1.5rem;}
+.container{max-width:900px;margin:auto;padding:20px;}
+.btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;color:white;font-weight:bold;transition:.2s;}
+.btn.blue{background:#00bfff;}
+.btn.red{background:#ff4c4c;}
+.btn.gray{background:#555;}
+.btn:hover{opacity:.85;}
+.table-card{background:#1e1e1e;padding:15px;border-radius:10px;box-shadow:0 0 12px rgba(0,255,255,0.2);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #333;border-top:4px solid #00bfff;border-radius:50%;width:35px;height:35px;animation:spin 1s linear infinite;}
+@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0deg);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
+@media(max-width:600px){.table-card{flex-direction:column;align-items:flex-start;gap:8px;}}
 </style>
 </head>
-
 <body>
-
-<div class="loader" id="loader">
-    <div class="spinner"></div>
-    <p>Loading...</p>
-</div>
-
-<div class="content" id="content">
-    <header class="header">
-        <a href="pages/create_delete_table.html?name='create'"><button class="create_delete_table">Create</button></a>
-         <a href="pages/create_delete_table.html?name='delete'"><button class="create_delete_table">Delete</button></a>
-    </header>
-    <div id="table_content">
-
-    </div>
-</div>
+<header class="header">
+<h1>Database Tables</h1>
+<button class="btn blue" onclick="window.location.href='create_table.html'">+ Create Table</button>
+</header>
+<div class="container" id="tablesContainer"></div>
+<div class="loading" id="loading"></div>
 <script>
+const tablesContainer=document.getElementById("tablesContainer");
+const loading=document.getElementById("loading");
+function showLoading(){loading.style.display="block";}
+function hideLoading(){loading.style.display="none";}
 
-const loader = document.getElementById("loader");
-const content = document.getElementById("content");
-const local = "http://127.0.0.1:8000"
-const server = "https://python-mysql-api.onrender.com"
-const hostNow = server
-
-// async function that loads data
-async function loadData() {
-    try {
-        const response = await fetch(hostNow); // your API endpoint
-        const data = await response.json();
-
-
-        // hide loader when request is finished
-        loader.style.display = "none";
-        content.style.display = "flex";
-        //.......................................................................................................
-        firstPage(data)
-        //.......................................................................................................
-
-    } catch (error) {
-        loader.innerHTML = "<p>❌ Failed to load data</p>";
-    }
+async function fetchTables(){
+    showLoading();
+    try{
+        const res=await fetch("https://python-mysql-api.onrender.com/get-tables");
+        const tables=await res.json();
+        tablesContainer.innerHTML="";
+        tables.forEach(t=>{
+            const div=document.createElement("div");
+            div.className="table-card";
+            div.innerHTML=`
+                <span>${t}</span>
+                <div>
+                    <button class="btn blue" onclick="viewTable('${t}')">View</button>
+                    <button class="btn gray" onclick="editTable('${t}')">Edit</button>
+                    <button class="btn red" onclick="deleteTable('${t}')">Delete</button>
+                </div>
+            `;
+            tablesContainer.appendChild(div);
+        });
+    }catch(err){console.error(err); alert("Error fetching tables");}
+    finally{hideLoading();}
 }
 
-// start loading
-loadData();
+function viewTable(name){window.location.href=`view_table.html?table=${name}`;}
+function editTable(name){window.location.href=`edit_table.html?table=${name}`;}
+async function deleteTable(name){
+    if(!confirm(`Delete table "${name}"?`)) return;
+    showLoading();
+    try{
+        const res=await fetch(`https://python-mysql-api.onrender.com/delete-table/${name}`,{method:"DELETE"});
+        const data=await res.json();
+        alert("Table deleted");
+        fetchTables();
+    }catch(err){console.error(err); alert("Error deleting table");}
+    finally{hideLoading();}
+}
 
-
-    
-    function firstPage(data) {
-    let container = document.getElementById("table_content")
-    let fP = '';
-            data.forEach(element => {
-                fP += `<a href="/pages/see_table.html?name=${element}"><button class="tables">${element}</button></a>`
-            });
-    container.innerHTML = fP
-    }
+fetchTables();
 </script>
 </body>
 </html>
-
-

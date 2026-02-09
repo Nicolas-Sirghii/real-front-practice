@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>View Table</title>
+<style>
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#f0f0f0;}
+.header{background:#1f1f1f;color:#00ffff;padding:15px 20px;}
+.container{max-width:900px;margin:auto;padding:20px;}
+.card{background:#1e1e1e;border-radius:10px;padding:20px;box-shadow:0 0 12px rgba(0,255,255,0.2);}
+.actions{margin-bottom:10px;}
+input.search{padding:8px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#f0f0f0;width:200px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{padding:10px;border-bottom:1px solid #333;text-align:left;}
+th{background:#272727;color:#00ffff;}
+.btn{border:none;padding:7px 12px;border-radius:6px;cursor:pointer;background:#00bfff;color:white;}
+.pagination{margin-top:10px;display:flex;gap:10px;}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #333;border-top:4px solid #00bfff;border-radius:50%;width:35px;height:35px;animation:spin 1s linear infinite;}
+@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0deg);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
+@media(max-width:700px){table,thead,tbody,tr,td,th{display:block;width:100%;}thead{display:none;}tr{margin-bottom:10px;background:#1a1a1a;padding:10px;border-radius:8px;}}
+</style>
+</head>
+<body>
+<header class="header"><h1>View Table</h1></header>
+<div class="container">
+<div class="card">
+<div class="actions"><input id="searchInput" class="search" placeholder="Search..."></div>
+<table>
+<thead><tr id="tableHead"></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+<div class="pagination">
+<button id="prevBtn" class="btn">Prev</button>
+<button id="nextBtn" class="btn">Next</button>
+</div>
+</div>
+</div>
+<div class="loading" id="loading"></div>
+<script>
+const tableHead=document.getElementById("tableHead");
+const tableBody=document.getElementById("tableBody");
+const loading=document.getElementById("loading");
+const searchInput=document.getElementById("searchInput");
+const prevBtn=document.getElementById("prevBtn");
+const nextBtn=document.getElementById("nextBtn");
+
+function showLoading(){loading.style.display="block";}
+function hideLoading(){loading.style.display="none";}
+
+const urlParams=new URLSearchParams(window.location.search);
+const tableName=urlParams.get("table");
+document.querySelector("header h1").innerText="View Table: "+tableName;
+
+let columns=[];
+let tableData=[];
+let currentPage=0;
+const pageSize=10;
+
+function renderTable(){
+    tableHead.innerHTML="";
+    columns.forEach(col=>{const th=document.createElement("th");th.innerText=col;tableHead.appendChild(th);});
+    tableBody.innerHTML="";
+    const start=currentPage*pageSize;
+    const end=start+pageSize;
+    tableData.slice(start,end).forEach(row=>{
+        const tr=document.createElement("tr");
+        columns.forEach(col=>{const td=document.createElement("td"); td.innerText=row[col]; tr.appendChild(td);});
+        tableBody.appendChild(tr);
+    });
+}
+
+function paginate(direction){
+    const maxPage=Math.floor((tableData.length-1)/pageSize);
+    if(direction==="next" && currentPage<maxPage) currentPage++;
+    if(direction==="prev" && currentPage>0) currentPage--;
+    renderTable();
+}
+
+searchInput.addEventListener("input",()=>{
+    const q=searchInput.value.toLowerCase();
+    tableData=tableDataAll.filter(r=>columns.some(c=>(""+r[c]).toLowerCase().includes(q)));
+    currentPage=0; renderTable();
+});
+
+nextBtn.addEventListener("click",()=>paginate("next"));
+prevBtn.addEventListener("click",()=>paginate("prev"));
+
+let tableDataAll=[];
+
+async function fetchTableData(){
+    showLoading();
+    try{
+        const res=await fetch(`https://python-mysql-api.onrender.com/get-table-data/${tableName}`);
+        const data=await res.json();
+        columns=data.columns;
+        tableData=data.rows;
+        tableDataAll=data.rows;
+        renderTable();
+    }catch(err){console.error(err); alert("Error fetching table data");}
+    finally{hideLoading();}
+}
+
+fetchTableData();
+</script>
+</body>
+</html>
